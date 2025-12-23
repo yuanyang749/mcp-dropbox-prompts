@@ -20,33 +20,67 @@
 3. **关键权限 (Permissions)**：勾选 `files.metadata.read`, `files.content.read`, `files.content.write`并提交。
 4. 生成 **Generated access token**。
 
-### 2. 在 Cursor 中配置
+### 2. 在 Cursor 中配置 (UI 方式)
 
-在 Cursor 的 MCP 设置中添加一个新的 Server：
+在 Cursor 的 MCP 设置界面点击 **"+ Add New MCP Server"**：
 
 - **Type**: `command`
-- **Command**:
-  ```bash
-  npx -y github:yuanyang749/mcp-dropbox-prompts
-  ```
+- **Command**: `npx -y mcp-dropbox-prompts`
 - **Env Variables**:
   - `DROPBOX_ACCESS_TOKEN`: 您的 Dropbox Token
-  - `HTTPS_PROXY`: `http://127.0.0.1:7890` (如果您在中国境内使用，建议填写您的本地代理地址)
+  - `HTTPS_PROXY`: `http://127.0.0.1:7890`
   - `DROPBOX_ROOT_PATH`: `/`
+
+### 3. 在配置文件中配置 (JSON 方式)
+
+如果您习惯直接修改配置文件，或者是在 **Claude Desktop** 中使用，请修改您的 `mcp_config.json` (或 `claude_desktop_config.json`)：
+
+```json
+{
+  "mcpServers": {
+    "mcp-dropbox-prompts": {
+      "command": "npx",
+      "args": ["-y", "mcp-dropbox-prompts"],
+      "env": {
+        "DROPBOX_ACCESS_TOKEN": "您的_DROPBOX_TOKEN",
+        "HTTPS_PROXY": "http://127.0.0.1:7890",
+        "DROPBOX_ROOT_PATH": "/"
+      }
+    }
+  }
+}
+```
 
 ## 📖 使用指南
 
-### 呼叫角色
+### 方式一：快捷指令 (限支持的客户端)
 
-在对话窗口输入 `/` 即可看到所有存储在 Dropbox 中的提示词。
+在 **Cursor** 等支持 MCP Prompts 标准的编辑器中，直接在对话框输入 **`/`**，即可看到所有存储在 Dropbox 中的提示词文件。选择后内容将自动注入。
 
-### 保存新角色 (Chat-to-Save)
+> **⚠️ 兼容性说明**：并非所有 IDE/客户端都支持通过 `/` 呼叫 Prompts。如果您在工具栏看得到服务器但输入 `/` 没反应，请使用下方的**“工具调用”**方式。
 
-在对话中直接输入：
+### 方式二：工具调用 (通用方式)
 
-> “把以上提示词保存为新角色，名字叫 `tech_lead`”
+本项目将所有核心功能封装为了 **Tools**，这意味着在任何支持 MCP 的环境（如 Claude Desktop, VS Code 等）中，您都可以通过口语指令让 AI 执行操作：
 
-AI 会自动通过工具调用将内容同步到您的网盘中。
+1.  **🔍 智能检索 (New!)**：
+
+    > “帮我找一个**抖音相关的**提示词角色。”
+    > AI 会调用 `search_prompts` 进行模糊匹配，并列出相关选项供您确认。
+
+2.  **📋 列出所有角色**：
+
+    > “列出我 Dropbox 里所有的 Prompt。”
+    > AI 会执行 `list_prompts`。
+
+3.  **📖 读取特定内容**：
+
+    > “读取 `python_expert` 这个角色的内容。”
+    > AI 会执行 `get_prompt` 并获取其具体提示词。
+
+4.  **💾 保存新角色 (Chat-to-Save)**：
+    > “把刚才这段对话逻辑保存为新角色，名字叫 `tech_lead`。”
+    > AI 会调用 `save_prompt` 自动将内容同步到您的网盘。
 
 ## ❓ 常见问题 (Troubleshooting)
 

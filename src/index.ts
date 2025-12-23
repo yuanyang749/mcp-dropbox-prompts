@@ -137,7 +137,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   }
 });
 
-// 3. 列出工具 (List Tools) - 这里定义 "Chat-to-Save"
+// 3. 列出工具 (List Tools)
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -159,51 +159,132 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["name", "content"],
         },
       },
+      {
+        name: "list_prompts",
+        description: "List all available AI prompts/roles stored in Dropbox.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "get_prompt",
+        description: "Get the content of a specific prompt/role from Dropbox.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "The name of the prompt to retrieve.",
+            },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "search_prompts",
+        description: "Search for prompts by name using a keyword (fuzzy match/substring).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "The keyword to search for in prompt names.",
+            },
+          },
+          required: ["query"],
+        },
+      },
     ],
   };
 });
 
 // 4. 调用工具 (Call Tool)
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "save_prompt") {
-    const args = request.params.arguments as { name: string; content: string };
-    
-    if (!args.name || !args.content) {
-         throw new McpError(ErrorCode.InvalidParams, "Name and content are required");
-    }
+  const { name, arguments: args } = request.params;
 
-    try {
-      const filePath = normalizePath(args.name);
+  try {
+    if (name === "save_prompt") {
+      const { name: pName, content } = args as { name: string; content: string };
+      if (!pName || !content) throw new McpError(ErrorCode.InvalidParams, "Name and content are required");
       
-      // 上传文件 (overwrite 模式)
+      const filePath = normalizePath(pName);
       await dbx.filesUpload({
         path: filePath,
-        contents: args.content,
+        contents: content,
         mode: { ".tag": "overwrite" },
       });
 
       return {
-        content: [
-          {
-            type: "text",
-            text: `Successfully saved prompt '${args.name}' to Dropbox at ${filePath}`,
-          },
-        ],
-      };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error saving to Dropbox: ${error.message}`,
-          },
-        ],
-        isError: true,
+        content: [{ type: "text", text: `Successfully saved prompt '${pName}' to Dropbox at ${filePath}` }],
       };
     }
+
+    if (name === "list_prompts") {
+      const response = await dbx.filesListFolder({
+        path: ROOT_PATH === "/" ? "" : ROOT_PATH,
+        recursive: true,
+      });
+
+      const files = response.result.entries
+        .filter((entry) => entry[".tag"] === "file" && entry.name.endsWith(".md"))
+        .map((entry) => entry.name.replace(".md", ""));
+
+      return {
+        content: [{ type: "text", text: `Available prompts: ${files.join(", ")}` }],
+      };
+    }
+
+    if (name === "get_prompt") {
+      const { name: pName } = args as { name: string };
+      if (!pName) throw new McpError(ErrorCode.InvalidParams, "Prompt name is required");
+
+      const filePath = normalizePath(pName);
+      const response = await dbx.filesDownload({ path: filePath });
+      // @ts-ignore
+      const content = (response.result as any).fileBinary.toString("utf8");
+
+      return {
+        content: [{ type: "text", text: content }],
+      };
+    }
+
+    if (name === "search_prompts") {
+      const { query } = args as { query: string };
+      if (!query) throw new McpError(ErrorCode.InvalidParams, "Search query is required");
+
+      const response = await dbx.filesListFolder({
+        path: ROOT_PATH === "/" ? "" : ROOT_PATH,
+        recursive: true,
+      });
+
+      const lowercaseQuery = query.toLowerCase();
+      const matchedFiles = response.result.entries
+        .filter((entry) => 
+            entry[".tag"] === "file" && 
+            entry.name.endsWith(".md") &&
+            entry.name.toLowerCase().includes(lowercaseQuery)
+        )
+        .map((entry) => entry.name.replace(".md", ""));
+
+      if (matchedFiles.length === 0) {
+        return {
+          content: [{ type: "text", text: `No prompts found matching: "${query}"` }],
+        };
+      }
+
+      return {
+        content: [{ type: "text", text: `I found these related prompts: ${matchedFiles.join(", ")}. Which one would you like to use?` }],
+      };
+    }
+
+    throw new McpError(ErrorCode.MethodNotFound, `Tool not found: ${name}`);
+  } catch (error: any) {
+    return {
+      content: [{ type: "text", text: `Error: ${error.message}` }],
+      isError: true,
+    };
   }
-  
-  throw new McpError(ErrorCode.MethodNotFound, "Tool not found");
 });
 
 const transport = new StdioServerTransport();

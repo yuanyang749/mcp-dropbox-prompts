@@ -1,6 +1,6 @@
 {
   "name": "mcp-dropbox-prompts",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "MCP Server to serve and manage AI prompts from Dropbox",
   "type": "module",
   "main": "build/index.js",
@@ -11,8 +11,13 @@
     "build": "tsc",
     "start": "node build/index.js",
     "dev": "ts-node src/index.ts",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "prepublishOnly": "npm run build"
   },
+  "files": [
+    "build",
+    "README.md"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.6.0",
     "dotenv": "^16.3.1",
