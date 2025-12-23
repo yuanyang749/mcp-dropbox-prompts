@@ -25,10 +25,13 @@
 在 Cursor 的 MCP 设置中添加一个新的 Server：
 
 - **Type**: `command`
-- **Command**: `npx -y mcp-dropbox-prompts`
+- **Command**:
+  ```bash
+  npx -y github:yuanyang749/mcp-dropbox-prompts
+  ```
 - **Env Variables**:
   - `DROPBOX_ACCESS_TOKEN`: 您的 Dropbox Token
-  - `HTTPS_PROXY`: `http://127.0.0.1:7890` (如果您在中国境内使用，请填写代理地址)
+  - `HTTPS_PROXY`: `http://127.0.0.1:7890` (如果您在中国境内使用，建议填写您的本地代理地址)
   - `DROPBOX_ROOT_PATH`: `/`
 
 ## 📖 使用指南
@@ -43,14 +46,30 @@
 
 > “把以上提示词保存为新角色，名字叫 `tech_lead`”
 
-AI 会自动将内容同步到您的网盘中。
+AI 会自动通过工具调用将内容同步到您的网盘中。
+
+## ❓ 常见问题 (Troubleshooting)
+
+### 1. 提示 "ECONNRESET" 或连接超时
+
+- **原因**: 无法直连 Dropbox API。
+- **解决**: 请确保您的全局代理已开启，并在 Cursor 配置的 `env` 中正确填写了 `HTTPS_PROXY` (例如 `http://127.0.0.1:7890`)。
+
+### 2. 无法保存新角色 (Permission Denied)
+
+- **原因**: Dropbox App 权限设置不全，或者生成 Token 时未包含写入权限。
+- **解决**: 请回到 Dropbox 控制台，在 **Permissions** 中确认 `files.content.write` 已勾选且已 **Submit**；然后 **重新生成** 一个新的 Token。
+
+### 3. 如何同步多台设备？
+
+- 只要在不同设备的 Cursor 中使用同一个 Dropbox 应用生成的 Token，您的提示词库就会完全同步。
 
 ## 🏗️ 本地开发
 
 如果您想基于此项目二次开发：
 
 ```bash
-git clone https://github.com/your-repo/mcp-dropbox-prompts.git
+git clone https://github.com/yuanyang749/mcp-dropbox-prompts.git
 cd mcp-dropbox-prompts
 npm install
 npm run build
