@@ -17,8 +17,27 @@
 
 1. 访问 [Dropbox Developers](https://www.dropbox.com/developers/apps)。
 2. 创建 App：`Scoped access` -> `App folder`。
-3. **关键权限 (Permissions)**：勾选 `files.metadata.read`, `files.content.read`, `files.content.write`并提交。
-4. 生成 **Generated access token**。
+3. **关键权限 (Permissions)**：在 **Permissions** 选项卡勾选 `files.metadata.read`, `files.content.read`, `files.content.write` 并点击页面下方的 **Submit**。
+
+---
+
+### 🔑 如何获得永久访问权限 (推荐)
+
+Dropbox 默认生成的 Access Token 只有 4 小时有效期。为了实现“永久在线”，建议配置 **Refresh Token**：
+
+1. **获取 App Key 和 Secret**：在 Dropbox App 控制台的 **Settings** 页面找到 `App key` 和 `App secret`。
+2. **获取授权码**：在浏览器打开以下链接（替换 `YOUR_APP_KEY`）：
+   `https://www.dropbox.com/oauth2/authorize?client_id=YOUR_APP_KEY&token_access_type=offline&response_type=code`
+3. **换取 Refresh Token**：在终端执行以下命令（替换对应参数）：
+   ```bash
+   curl https://api.dropbox.com/oauth2/token \
+     -d code=您刚刚得到的代码 \
+     -d grant_type=authorization_code \
+     -u 您的AppKey:您的AppSecret
+   ```
+4. **记录结果**：返回的 JSON 中包含的 `refresh_token` 即为永久令牌。
+
+---
 
 ### 2. 在 Cursor 中配置 (UI 方式)
 
@@ -27,7 +46,11 @@
 - **Type**: `command`
 - **Command**: `npx -y mcp-dropbox-prompts`
 - **Env Variables**:
-  - `DROPBOX_ACCESS_TOKEN`: 您的 Dropbox Token
+  - `DROPBOX_ACCESS_TOKEN`: (短期模式) 您的 Dropbox Token
+  - **或使用长效模式 (推荐)**：
+    - `DROPBOX_REFRESH_TOKEN`: 您的 Refresh Token
+    - `DROPBOX_CLIENT_ID`: 您的 App key
+    - `DROPBOX_CLIENT_SECRET`: 您的 App secret
   - `HTTPS_PROXY`: `http://127.0.0.1:7890`
   - `DROPBOX_ROOT_PATH`: `/`
 
@@ -42,7 +65,9 @@
       "command": "npx",
       "args": ["-y", "mcp-dropbox-prompts"],
       "env": {
-        "DROPBOX_ACCESS_TOKEN": "您的_DROPBOX_TOKEN",
+        "DROPBOX_REFRESH_TOKEN": "您的_REFRESH_TOKEN",
+        "DROPBOX_CLIENT_ID": "您的_APP_KEY",
+        "DROPBOX_CLIENT_SECRET": "您的_APP_SECRET",
         "HTTPS_PROXY": "http://127.0.0.1:7890",
         "DROPBOX_ROOT_PATH": "/"
       }

@@ -27,12 +27,15 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
+const REFRESH_TOKEN = process.env.DROPBOX_REFRESH_TOKEN;
+const CLIENT_ID = process.env.DROPBOX_CLIENT_ID;
+const CLIENT_SECRET = process.env.DROPBOX_CLIENT_SECRET;
+
 const ROOT_PATH = process.env.DROPBOX_ROOT_PATH || "";
-// 优先级：用户配置的 HTTPS_PROXY > 系统环境变量 > 默认 7890
 const PROXY_URL = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || "http://127.0.0.1:7890";
 
-if (!ACCESS_TOKEN) {
-  console.error("Error: DROPBOX_ACCESS_TOKEN is not set in .env file");
+if (!ACCESS_TOKEN && !REFRESH_TOKEN) {
+  console.error("Error: Neither DROPBOX_ACCESS_TOKEN nor DROPBOX_REFRESH_TOKEN is set in .env file");
   process.exit(1);
 }
 
@@ -44,10 +47,22 @@ const customFetch = (url: string, init?: any) => {
     });
 };
 
-const dbx = new Dropbox({ 
-    accessToken: ACCESS_TOKEN, 
+// Initialize Dropbox client based on available credentials
+const dbxConfig: any = { 
     fetch: customFetch as any 
-});
+};
+
+if (REFRESH_TOKEN && CLIENT_ID && CLIENT_SECRET) {
+    console.error("🔄 Using Refresh Token for persistent access...");
+    dbxConfig.refreshToken = REFRESH_TOKEN;
+    dbxConfig.clientId = CLIENT_ID;
+    dbxConfig.clientSecret = CLIENT_SECRET;
+} else {
+    console.error("🔑 Using short-lived Access Token...");
+    dbxConfig.accessToken = ACCESS_TOKEN;
+}
+
+const dbx = new Dropbox(dbxConfig);
 
 const server = new Server(
   {
