@@ -1,7 +1,7 @@
 {
   "name": "mcp-dropbox-prompts",
-  "version": "1.4.2",
-  "description": "MCP Server to serve and manage AI prompts from Dropbox",
+  "version": "2.0.0",
+  "description": "MCP Server to sync and manage AI prompts from Dropbox or WebDAV (Nutstore)",
   "type": "module",
   "main": "build/index.js",
   "bin": {
