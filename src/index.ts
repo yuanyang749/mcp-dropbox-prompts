@@ -12,6 +12,8 @@ import {
 import { Dropbox } from "dropbox";
 import { createClient, WebDAVClient } from "webdav";
 import "isomorphic-fetch";
+import AdmZip from "adm-zip";
+import fs from "fs";
 import dotenv from "dotenv";
 import path from "path";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -42,7 +44,7 @@ interface StorageProvider {
     deletePrompt(name: string): Promise<void>;
     searchPrompts(query: string): Promise<string[]>;
     searchContent(query: string): Promise<Array<{ name: string; snippet: string }>>;
-    exportPrompts(): Promise<Array<{ name: string; content: string }>>;
+    exportPrompts(): Promise<string>;
 }
 
 // --- Global Config ---
@@ -238,16 +240,33 @@ class DropboxProvider implements StorageProvider {
         return results;
     }
 
-    async exportPrompts(): Promise<Array<{ name: string; content: string }>> {
+    async exportPrompts(): Promise<string> {
         const prompts = await this.listPrompts();
-        const results: Array<{ name: string; content: string }> = [];
+        if (prompts.length === 0) return "";
+        
+        const zip = new AdmZip();
         for (const prompt of prompts) {
             try {
                 const content = await this.getPrompt(prompt.name);
-                results.push({ name: prompt.name, content });
+                zip.addFile(`${prompt.name}.md`, Buffer.from(content, "utf8"));
             } catch { /* ignore */ }
         }
-        return results;
+        
+        const zipBuffer = zip.toBuffer();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const exportPath = path.posix.join(ROOT_PATH, "_export", `prompts_backup_${timestamp}.zip`);
+        
+        await this.dbx.filesUpload({
+            path: exportPath,
+            contents: zipBuffer,
+            mode: { ".tag": "overwrite" }
+        });
+        
+        const linkResponse = await this.dbx.sharingCreateSharedLinkWithSettings({
+            path: exportPath
+        });
+        
+        return linkResponse.result.url.replace("?dl=0", "&dl=1");
     }
 }
 
@@ -374,16 +393,37 @@ class WebDavProvider implements StorageProvider {
         return results;
     }
 
-    async exportPrompts(): Promise<Array<{ name: string; content: string }>> {
+    async exportPrompts(): Promise<string> {
         const prompts = await this.listPrompts();
-        const results: Array<{ name: string; content: string }> = [];
+        if (prompts.length === 0) return "";
+        
+        const zip = new AdmZip();
         for (const prompt of prompts) {
             try {
                 const content = await this.getPrompt(prompt.name);
-                results.push({ name: prompt.name, content });
+                zip.addFile(`${prompt.name}.md`, Buffer.from(content, "utf8"));
             } catch { /* ignore */ }
         }
-        return results;
+        
+        const zipBuffer = zip.toBuffer();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        
+        // Save to cloud
+        const cloudExportDir = path.posix.join(ROOT_PATH, "_export");
+        try { await this.client.createDirectory(cloudExportDir); } catch {}
+        const cloudExportPath = path.posix.join(cloudExportDir, `prompts_backup_${timestamp}.zip`);
+        await this.client.putFileContents(cloudExportPath, zipBuffer);
+        
+        // Save locally for click-to-download link
+        const localExportDir = path.join(process.cwd(), "exports");
+        if (!fs.existsSync(localExportDir)) {
+            fs.mkdirSync(localExportDir, { recursive: true });
+        }
+        const localFileName = `prompts_backup_${timestamp}.zip`;
+        const localFilePath = path.join(localExportDir, localFileName);
+        fs.writeFileSync(localFilePath, zipBuffer);
+        
+        return `file://${localFilePath}`;
     }
 }
 
@@ -412,7 +452,7 @@ function getProvider(): StorageProvider {
         async deletePrompt() { throw new Error(noConfigError); },
         async searchPrompts() { throw new Error(noConfigError); },
         async searchContent() { throw new Error(noConfigError); },
-        async exportPrompts() { return []; }
+        async exportPrompts() { return ""; }
     };
 }
 
@@ -508,7 +548,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "export_prompts",
-        description: "Export all prompts as a combined document for backup or migration.",
+        description: "Export all prompts as a ZIP file and return a download link.",
         inputSchema: { type: "object", properties: {} },
       },
     ],
@@ -566,13 +606,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (name === "export_prompts") {
-      const allPrompts = await provider.exportPrompts();
-      if (allPrompts.length === 0) {
+      const urlOrPath = await provider.exportPrompts();
+      if (!urlOrPath) {
         return { content: [{ type: "text", text: "📭 没有可导出的提示词。" }] };
       }
-      const combined = allPrompts.map(p => `# ${p.name}\n\n${p.content}`).join('\n\n---\n\n');
-      const header = `# 提示词导出\n\n导出时间: ${new Date().toISOString()}\n总计: ${allPrompts.length} 个提示词\n\n---\n\n`;
-      return { content: [{ type: "text", text: header + combined }] };
+      return { 
+        content: [
+          { 
+            type: "text", 
+            text: `📦 提示词已打包完成！\n\n🔗 [点击下载提示词备份压缩包](${urlOrPath})\n\n*(注：如果是本地文件链接，请直接在资源管理器中打开)*` 
+          }
+        ] 
+      };
     }
 
     throw new McpError(ErrorCode.MethodNotFound, `Tool not found: ${name}`);
