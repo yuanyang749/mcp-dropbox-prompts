@@ -407,32 +407,31 @@ class WebDavProvider implements StorageProvider {
         
         const zipBuffer = zip.toBuffer();
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const localFileName = `prompts_backup_${timestamp}.zip`;
         
         // Save to cloud
         const cloudExportDir = path.posix.join(ROOT_PATH, "_export");
         try { await this.client.createDirectory(cloudExportDir); } catch {}
-        const cloudExportPath = path.posix.join(cloudExportDir, `prompts_backup_${timestamp}.zip`);
+        const cloudExportPath = path.posix.join(cloudExportDir, localFileName);
         await this.client.putFileContents(cloudExportPath, zipBuffer);
         
         // Save locally for click-to-download link
         const localExportDir = path.join(__dirname, "..", "exports");
-        console.error(`Local export directory: ${localExportDir}`);
         if (!fs.existsSync(localExportDir)) {
             try {
                 fs.mkdirSync(localExportDir, { recursive: true });
             } catch (err) {
-                console.error(`Failed to create directory: ${localExportDir}`, err);
-                // Fallback to a temp directory if project dir is not writable
                 const tempDir = path.join(process.env.HOME || "/tmp", ".mcp-dropbox-prompts", "exports");
                 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-                return `file://${path.join(tempDir, `prompts_backup_${timestamp}.zip`)}`;
+                const tempPath = path.join(tempDir, localFileName);
+                fs.writeFileSync(tempPath, zipBuffer);
+                return `file://${tempPath}|${cloudExportPath}`;
             }
         }
-        const localFileName = `prompts_backup_${timestamp}.zip`;
         const localFilePath = path.join(localExportDir, localFileName);
         fs.writeFileSync(localFilePath, zipBuffer);
         
-        return `file://${localFilePath}`;
+        return `file://${localFilePath}|${cloudExportPath}`;
     }
 }
 
@@ -621,11 +620,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       
       let message = `📦 提示词已打包完成！\n\n`;
-      if (urlOrPath.startsWith('file://')) {
+      if (urlOrPath.includes('|')) {
+        const [localUrl, cloudPath] = urlOrPath.split('|');
+        const plainPath = decodeURIComponent(localUrl.replace('file://', ''));
+        message += `📍 **本地路径**: \`${plainPath}\`\n`;
+        message += `☁️ **云端同步**: \`坚果云:${cloudPath}\` (已同步)\n\n`;
+        message += `🔗 [在此打开本地文件](${localUrl})\n\n*(提示：您可以直接复制上方路径在 Finder 中打开)*`;
+      } else if (urlOrPath.startsWith('file://')) {
         const plainPath = decodeURIComponent(urlOrPath.replace('file://', ''));
-        message += `📍 **本地路径**: \`${plainPath}\`\n\n🔗 [在此打开链接](${urlOrPath})\n\n*(提示：您可以直接复制上方路径在 Finder 或终端中打开)*`;
+        message += `📍 **本地路径**: \`${plainPath}\`\n\n🔗 [在此打开本地文件](${urlOrPath})`;
       } else {
-        message += `🔗 [点击从云端下载备份压缩包](${urlOrPath})`;
+        message += `🔗 [点击从 Dropbox 下载备份压缩包](${urlOrPath})`;
       }
 
       return { 
