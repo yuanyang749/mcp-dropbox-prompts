@@ -76,6 +76,35 @@ Dropbox 默认生成的 Access Token 只有 4 小时有效期。为了实现“�
 }
 ```
 
+---
+
+### ☁️ 方案二：配置坚果云 (WebDAV) - 国内推荐
+
+坚果云支持标准的 WebDAV 协议，无需代理且 Token 永久有效。
+
+1. **开启 WebDAV**：登录坚果云官网 -> 安全设置 -> 第三方应用管理。
+2. **添加应用**：生成一个专门给 MCP 使用的 **“应用密码”**。
+3. **在配置文件中配置**：
+
+```json
+{
+  "mcpServers": {
+    "mcp-prompts": {
+      "command": "npx",
+      "args": ["-y", "mcp-dropbox-prompts"],
+      "env": {
+        "WEBDAV_USERNAME": "您的坚果云账号邮箱",
+        "WEBDAV_PASSWORD": "您的应用特定密码",
+        "WEBDAV_URL": "https://dav.jianguoyun.com/dav/",
+        "WEBDAV_ROOT_PATH": "/"
+      }
+    }
+  }
+}
+```
+
+---
+
 ## 📖 使用指南
 
 ### 方式一：快捷指令 (限支持的客户端)
