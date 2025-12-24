@@ -415,9 +415,18 @@ class WebDavProvider implements StorageProvider {
         await this.client.putFileContents(cloudExportPath, zipBuffer);
         
         // Save locally for click-to-download link
-        const localExportDir = path.join(process.cwd(), "exports");
+        const localExportDir = path.join(__dirname, "..", "exports");
+        console.error(`Local export directory: ${localExportDir}`);
         if (!fs.existsSync(localExportDir)) {
-            fs.mkdirSync(localExportDir, { recursive: true });
+            try {
+                fs.mkdirSync(localExportDir, { recursive: true });
+            } catch (err) {
+                console.error(`Failed to create directory: ${localExportDir}`, err);
+                // Fallback to a temp directory if project dir is not writable
+                const tempDir = path.join(process.env.HOME || "/tmp", ".mcp-dropbox-prompts", "exports");
+                if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+                return `file://${path.join(tempDir, `prompts_backup_${timestamp}.zip`)}`;
+            }
         }
         const localFileName = `prompts_backup_${timestamp}.zip`;
         const localFilePath = path.join(localExportDir, localFileName);
