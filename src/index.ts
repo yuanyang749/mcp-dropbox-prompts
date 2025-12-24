@@ -619,13 +619,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!urlOrPath) {
         return { content: [{ type: "text", text: "📭 没有可导出的提示词。" }] };
       }
+      
+      let message = `📦 提示词已打包完成！\n\n`;
+      if (urlOrPath.startsWith('file://')) {
+        const plainPath = decodeURIComponent(urlOrPath.replace('file://', ''));
+        message += `📍 **本地路径**: \`${plainPath}\`\n\n🔗 [在此打开链接](${urlOrPath})\n\n*(提示：您可以直接复制上方路径在 Finder 或终端中打开)*`;
+      } else {
+        message += `🔗 [点击从云端下载备份压缩包](${urlOrPath})`;
+      }
+
       return { 
-        content: [
-          { 
-            type: "text", 
-            text: `📦 提示词已打包完成！\n\n🔗 [点击下载提示词备份压缩包](${urlOrPath})\n\n*(注：如果是本地文件链接，请直接在资源管理器中打开)*` 
-          }
-        ] 
+        content: [{ type: "text", text: message }] 
       };
     }
 
