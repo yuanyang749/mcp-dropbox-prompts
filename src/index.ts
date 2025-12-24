@@ -144,13 +144,16 @@ class WebDavProvider implements StorageProvider {
     }
 
     async listPrompts(): Promise<Prompt[]> {
+        console.error(`Listing WebDAV files in: ${ROOT_PATH}`);
         const files = await this.client.getDirectoryContents(ROOT_PATH) as any[];
-        return files
+        const prompts = files
             .filter(file => file.type === "file" && file.basename.endsWith(".md"))
             .map(file => ({
                 name: file.basename.replace(".md", ""),
                 description: `WebDAV: ${file.filename}`
             }));
+        console.error(`Found ${prompts.length} prompts in WebDAV.`);
+        return prompts;
     }
 
     async getPrompt(name: string): Promise<string> {

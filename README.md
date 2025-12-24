@@ -96,12 +96,14 @@ Dropbox 默认生成的 Access Token 只有 4 小时有效期。为了实现“�
         "WEBDAV_USERNAME": "您的坚果云账号邮箱",
         "WEBDAV_PASSWORD": "您的应用特定密码",
         "WEBDAV_URL": "https://dav.jianguoyun.com/dav/",
-        "WEBDAV_ROOT_PATH": "/"
+        "WEBDAV_ROOT_PATH": "/mcp-prompts"
       }
     }
   }
 }
 ```
+
+> **注意**：WebDAV 模式默认**不进行递归扫描**（为防止扫描整个网盘导致性能问题）。请务必将 `WEBDAV_ROOT_PATH` 设置为存放您 `.md` 提示词文件的具体文件夹路径（例如 `/mcp-prompts`）。
 
 ---
 

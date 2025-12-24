@@ -1,6 +1,6 @@
 {
   "name": "mcp-dropbox-prompts",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "MCP Server to serve and manage AI prompts from Dropbox",
   "type": "module",
   "main": "build/index.js",
